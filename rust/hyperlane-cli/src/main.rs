@@ -4,18 +4,17 @@ mod model;
 
 use crate::model::matching_list::MatchingList;
 use crate::model::send_args::SendArgs;
-use clap::{arg, command, Command};
+use clap::{arg, command, Arg, Command};
 use ethers::core::rand::rngs::OsRng;
 use ethers::prelude::LocalWallet;
 use serde_json::from_str;
+use std::str::FromStr;
 
 #[tokio::main]
 async fn main() {
-    /// Creates a new wallet
-    let wallet = LocalWallet::new(&mut OsRng);
-
     let matches = command!()
         .about("A CLI tool for interacting with Hyperlane")
+        .arg(arg!(-w --wallet <WALLET> "Sets the private key to use").required(true))
         .subcommand(
             Command::new("send")
                 .about("Dispatches a message")
@@ -35,6 +34,13 @@ async fn main() {
                 .arg(arg!(-l --list "MatchingList for the query").required(true)),
         )
         .get_matches();
+
+    let wallet_key = matches
+        .get_one::<String>("wallet")
+        .unwrap()
+        .strip_prefix("0x")
+        .unwrap();
+    let wallet = LocalWallet::from_str(wallet_key).expect("Failed to parse private key");
 
     match matches.subcommand() {
         Some(("send", send_matches)) => {

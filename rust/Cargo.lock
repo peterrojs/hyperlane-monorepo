@@ -4172,6 +4172,7 @@ name = "hyperlane-cli"
 version = "0.1.0"
 dependencies = [
  "abigen",
+ "anyhow",
  "clap 4.5.4",
  "convert_case 0.6.0",
  "ethers",
