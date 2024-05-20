@@ -10,6 +10,7 @@ use ethers::prelude::{LocalWallet, PendingTransaction};
 use ethers::providers::{Http, Provider};
 use std::str::FromStr;
 use std::sync::Arc;
+use colored::Colorize;
 
 pub async fn send_message(args: SendArgs, wallet: LocalWallet) {
     let provider =
@@ -23,16 +24,18 @@ pub async fn send_message(args: SendArgs, wallet: LocalWallet) {
     fixed_address_array.copy_from_slice(args.address.as_bytes());
     let message_body = Bytes::from_str(&*args.message).expect("Failed to parse message bytes");
 
+    println!("{} {}", "Sending message to contract:".bold(), args.mailbox);
+
     match contract
         .dispatch_0(args.domain, fixed_address_array, message_body)
         .send()
         .await
     {
         Ok(pending_transaction) => {
-            println!("Transaction sent: {:?}", pending_transaction);
+            println!("{} {:?}", "Transaction sent:".bold(), pending_transaction.to_string().green());
         }
         Err(e) => {
-            println!("Failed to send transaction: {:?}", e);
+            println!("{} {}", "Failed to send transaction:".bold().red(), e);
         }
     }
 }
