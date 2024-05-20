@@ -12,19 +12,19 @@ use std::str::FromStr;
 use std::sync::Arc;
 use colored::Colorize;
 
-pub async fn send_message(args: SendArgs, wallet: LocalWallet) {
+pub async fn send_message(mailbox: &str, rpc_url: &str, wallet: LocalWallet, args: SendArgs) {
     let provider =
-        Provider::<Http>::try_from(args.rpc_url).expect("Failed to create provider from RPC URL");
+        Provider::<Http>::try_from(rpc_url).expect("Failed to create provider from RPC URL");
     let client = SignerMiddleware::new(provider, wallet);
     let contract_address =
-        Address::from_str(&args.mailbox).expect("Failed to parse contract address");
+        Address::from_str(mailbox).expect("Failed to parse contract address");
     let contract = IMailbox::new(contract_address, Arc::new(client));
 
     let mut fixed_address_array = [0u8; 32];
     fixed_address_array.copy_from_slice(args.address.as_bytes());
     let message_body = Bytes::from_str(&*args.message).expect("Failed to parse message bytes");
 
-    println!("{} {}", "Sending message to contract:".bold(), args.mailbox);
+    println!("{} {}", "Sending message to contract:".bold(), mailbox);
 
     match contract
         .dispatch_0(args.domain, fixed_address_array, message_body)
@@ -40,4 +40,6 @@ pub async fn send_message(args: SendArgs, wallet: LocalWallet) {
     }
 }
 
-pub async fn perform_search(matching_list: MatchingList) {}
+pub async fn perform_search(mailbox: &str, rpc_url: &str, wallet: LocalWallet, matching_list: MatchingList) {
+
+}
