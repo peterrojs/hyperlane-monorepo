@@ -1,10 +1,12 @@
 use crate::interfaces::i_mailbox::IMailbox;
 use crate::model::matching_list::MatchingList;
 use crate::model::send_args::SendArgs;
+use anyhow::Result;
 use ethers::abi::Address;
+use ethers::contract::ContractError;
 use ethers::core::types::Bytes;
 use ethers::middleware::SignerMiddleware;
-use ethers::prelude::LocalWallet;
+use ethers::prelude::{LocalWallet, PendingTransaction};
 use ethers::providers::{Http, Provider};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -13,11 +15,7 @@ pub async fn send_message(args: SendArgs, wallet: LocalWallet) {
     let provider =
         Provider::<Http>::try_from(args.rpc_url).expect("Failed to create provider from RPC URL");
     let client = SignerMiddleware::new(provider, wallet);
-    let contract_address = args
-        .address
-        .parse::<Address>()
-        .expect("Failed to parse contract address");
-
+    let contract_address = Address::from_str(&args.mailbox).expect("Failed to parse contract address");
     let contract = IMailbox::new(contract_address, Arc::new(client));
 
     let mut fixed_address_array = [0u8; 32];
@@ -29,8 +27,12 @@ pub async fn send_message(args: SendArgs, wallet: LocalWallet) {
         .send()
         .await
     {
-        Ok(tx) => println!("Transaction sent"),
-        Err(e) => eprintln!("Error sending transaction"),
+        Ok(_) => {
+            println!("Transaction sent");
+        }
+        Err(e) => {
+            println!("Failed to send transaction: {:?}", e);
+        }
     }
 }
 

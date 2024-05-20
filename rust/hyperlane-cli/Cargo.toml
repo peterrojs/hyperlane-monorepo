@@ -12,6 +12,7 @@ version.workspace = true
 [dependencies]
 hyperlane-core = { path = "../hyperlane-core", features = ["agent", "async"] }
 hyperlane-base = { path = "../hyperlane-base" }
+anyhow.workspace = true
 serde.workspace = true
 eyre.workspace = true
 convert_case.workspace = true
