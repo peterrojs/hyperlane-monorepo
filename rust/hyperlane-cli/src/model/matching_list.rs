@@ -267,13 +267,13 @@ impl<'a> From<&'a HyperlaneMessage> for MatchInfo<'a> {
 
 impl MatchingList {
     /// Check if a message matches any of the rules.
-    /// - `default`: What to return if the the matching list is empty.
+    /// - `default`: What to return if the matching list is empty.
     pub fn msg_matches(&self, msg: &HyperlaneMessage, default: bool) -> bool {
         self.matches(msg.into(), default)
     }
 
     /// Check if a message matches any of the rules.
-    /// - `default`: What to return if the the matching list is empty.
+    /// - `default`: What to return if the matching list is empty.
     fn matches(&self, info: MatchInfo, default: bool) -> bool {
         if let Some(rules) = &self.0 {
             matches_any_rule(rules.iter(), info)
@@ -319,7 +319,6 @@ mod test {
     use hyperlane_core::{H160, H256};
 
     use super::{Filter::*, MatchInfo, MatchingList};
-    use crate::model::matching_list::MatchInfo;
 
     #[test]
     fn basic_config() {
