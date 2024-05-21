@@ -20,6 +20,7 @@ serde_json.workspace = true
 clap = { workspace = true, features = ["cargo"] }
 ethers.workspace = true
 tokio.workspace = true
+reqwest.workspace = true
 colored = "2.1.0"
 
 [build-dependencies]

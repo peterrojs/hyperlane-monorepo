@@ -4190,6 +4190,7 @@ dependencies = [
  "eyre",
  "hyperlane-base",
  "hyperlane-core",
+ "reqwest",
  "serde",
  "serde_json",
  "tokio",

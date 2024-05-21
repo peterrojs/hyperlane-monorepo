@@ -7,6 +7,7 @@ use hyperlane_core::config::{
 };
 use serde_json::Value;
 
+pub mod graph_ql;
 pub mod matching_list;
 pub mod send_args;
 
