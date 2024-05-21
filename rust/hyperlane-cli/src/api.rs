@@ -5,15 +5,14 @@ use crate::model::send_args::SendArgs;
 use anyhow::Result;
 use colored::Colorize;
 use ethers::abi::Address;
-use ethers::contract::ContractError;
 use ethers::core::types::Bytes;
 use ethers::middleware::SignerMiddleware;
-use ethers::prelude::{LocalWallet, PendingTransaction};
+use ethers::prelude::{LocalWallet};
 use ethers::providers::{Http, Provider};
 use std::str::FromStr;
 use std::sync::Arc;
-use serde_json::to_string;
 
+/// Sends a message to a mailbox contract
 pub async fn send_message(wallet: LocalWallet, args: SendArgs) {
     let provider =
         Provider::<Http>::try_from(args.rpc_url).expect("Failed to create provider from RPC URL");
@@ -46,6 +45,7 @@ pub async fn send_message(wallet: LocalWallet, args: SendArgs) {
     }
 }
 
+/// Performs a search for messages based on the provided matching list
 pub async fn perform_search(matching_list: MatchingList) {
     let query = r#"
     query Message(

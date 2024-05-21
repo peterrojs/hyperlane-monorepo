@@ -8,7 +8,7 @@ use std::{
     marker::PhantomData,
 };
 
-use hyperlane_core::{config::StrOrInt, utils::hex_or_base58_to_h256, HyperlaneMessage, H256};
+use hyperlane_core::{config::StrOrInt, utils::hex_or_base58_to_h256, H256};
 use serde::{de::{Error, SeqAccess, Visitor}, Deserialize, Deserializer, Serialize};
 
 /// Defines a set of patterns for determining if a message should or should not
@@ -31,15 +31,6 @@ enum Filter<T> {
 impl<T> Default for Filter<T> {
     fn default() -> Self {
         Self::Wildcard
-    }
-}
-
-impl<T: PartialEq> Filter<T> {
-    fn matches(&self, v: &T) -> bool {
-        match self {
-            Filter::Wildcard => true,
-            Filter::Enumerated(list) => list.iter().any(|i| i == v),
-        }
     }
 }
 
@@ -240,14 +231,6 @@ impl Display for ListElement {
             self.destination_domain,
             self.recipient_address
         )
-    }
-}
-
-impl MatchingList {
-    /// Check if a message matches any of the rules.
-    /// - `default`: What to return if the matching list is empty.
-    pub fn msg_matches(&self, msg: &HyperlaneMessage, default: bool) -> bool {
-        self.matches(msg.into(), default)
     }
 }
 
