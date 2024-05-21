@@ -4,7 +4,7 @@ mod model;
 
 use crate::model::matching_list::MatchingList;
 use crate::model::send_args::SendArgs;
-use clap::{arg, command, Arg, Command};
+use clap::{arg, command, Command};
 use colored::Colorize;
 use ethers::core::rand::rngs::OsRng;
 use ethers::prelude::LocalWallet;
@@ -31,7 +31,7 @@ async fn main() {
         .subcommand(
             Command::new("search")
                 .about("Queries for messages sent from a specified chain")
-                .arg(arg!(-l --list <LIST> "MatchingList for the query. Should be in the following format: [{\"originDomain\": \"<VALUE>\", \"senderAddress\": \"<VALUE>\", \"destinationDomain\": \"<VALUE>\", \"recipientAddress\": \"<VALUE>\"}]").required(true)),
+                .arg(arg!(-l --list <LIST> "MatchingList for the query. Should be in the following format: [{\"origindomain\": \"<VALUE>\", \"senderaddress\": \"<VALUE>\", \"destinationdomain\": \"<VALUE>\", \"recipientaddress\": \"<VALUE>\"}]").required(true)),
         )
         .get_matches();
 

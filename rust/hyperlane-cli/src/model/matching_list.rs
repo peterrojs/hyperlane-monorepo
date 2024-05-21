@@ -9,10 +9,7 @@ use std::{
 };
 
 use hyperlane_core::{config::StrOrInt, utils::hex_or_base58_to_h256, HyperlaneMessage, H256};
-use serde::{
-    de::{Error, SeqAccess, Visitor},
-    Deserialize, Deserializer,
-};
+use serde::{de::{Error, SeqAccess, Visitor}, Deserialize, Deserializer, Serialize};
 
 /// Defines a set of patterns for determining if a message should or should not
 /// be relayed. This is useful for determine if a message matches a given set or
@@ -23,9 +20,9 @@ use serde::{
 /// - single value in decimal or hex (must start with `0x`) format
 /// - list of values in decimal or hex format
 #[derive(Debug, Default, Clone)]
-pub struct MatchingList(Option<Vec<ListElement>>);
+pub struct MatchingList(pub Option<Vec<ListElement>>);
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Serialize)]
 enum Filter<T> {
     Wildcard,
     Enumerated(Vec<T>),
@@ -220,9 +217,9 @@ impl<'de> Deserialize<'de> for Filter<H256> {
     }
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Clone, Serialize)]
 #[serde(tag = "type")]
-struct ListElement {
+pub struct ListElement {
     #[serde(default, rename = "origindomain")]
     origin_domain: Filter<u32>,
     #[serde(default, rename = "senderaddress")]
@@ -246,50 +243,12 @@ impl Display for ListElement {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
-struct MatchInfo<'a> {
-    src_domain: u32,
-    src_addr: &'a H256,
-    dst_domain: u32,
-    dst_addr: &'a H256,
-}
-
-impl<'a> From<&'a HyperlaneMessage> for MatchInfo<'a> {
-    fn from(msg: &'a HyperlaneMessage) -> Self {
-        Self {
-            src_domain: msg.origin,
-            src_addr: &msg.sender,
-            dst_domain: msg.destination,
-            dst_addr: &msg.recipient,
-        }
-    }
-}
-
 impl MatchingList {
     /// Check if a message matches any of the rules.
     /// - `default`: What to return if the matching list is empty.
     pub fn msg_matches(&self, msg: &HyperlaneMessage, default: bool) -> bool {
         self.matches(msg.into(), default)
     }
-
-    /// Check if a message matches any of the rules.
-    /// - `default`: What to return if the matching list is empty.
-    fn matches(&self, info: MatchInfo, default: bool) -> bool {
-        if let Some(rules) = &self.0 {
-            matches_any_rule(rules.iter(), info)
-        } else {
-            default
-        }
-    }
-}
-
-fn matches_any_rule<'a>(mut rules: impl Iterator<Item = &'a ListElement>, info: MatchInfo) -> bool {
-    rules.any(|rule| {
-        rule.origin_domain.matches(&info.src_domain)
-            && rule.sender_address.matches(info.src_addr)
-            && rule.destination_domain.matches(&info.dst_domain)
-            && rule.recipient_address.matches(info.dst_addr)
-    })
 }
 
 impl Display for MatchingList {
@@ -317,102 +276,7 @@ fn parse_addr<E: Error>(addr_str: &str) -> Result<H256, E> {
 #[cfg(test)]
 mod test {
     use hyperlane_core::{H160, H256};
-
-    use super::{Filter::*, MatchInfo, MatchingList};
-
-    #[test]
-    fn basic_config() {
-        let list: MatchingList = serde_json::from_str(r#"[{"origindomain": "*", "senderaddress": "*", "destinationdomain": "*", "recipientaddress": "*"}, {}]"#).unwrap();
-        assert!(list.0.is_some());
-        assert_eq!(list.0.as_ref().unwrap().len(), 2);
-        let elem = &list.0.as_ref().unwrap()[0];
-        assert_eq!(elem.destination_domain, Wildcard);
-        assert_eq!(elem.recipient_address, Wildcard);
-        assert_eq!(elem.origin_domain, Wildcard);
-        assert_eq!(elem.sender_address, Wildcard);
-
-        let elem = &list.0.as_ref().unwrap()[1];
-        assert_eq!(elem.destination_domain, Wildcard);
-        assert_eq!(elem.recipient_address, Wildcard);
-        assert_eq!(elem.origin_domain, Wildcard);
-        assert_eq!(elem.sender_address, Wildcard);
-
-        assert!(list.matches(
-            MatchInfo {
-                src_domain: 0,
-                src_addr: &H256::default(),
-                dst_domain: 0,
-                dst_addr: &H256::default()
-            },
-            false
-        ));
-
-        assert!(list.matches(
-            MatchInfo {
-                src_domain: 34,
-                src_addr: &"0x9d4454B023096f34B160D6B654540c56A1F81688"
-                    .parse::<H160>()
-                    .unwrap()
-                    .into(),
-                dst_domain: 5456,
-                dst_addr: &H256::default()
-            },
-            false
-        ))
-    }
-
-    #[test]
-    fn config_with_address() {
-        let list: MatchingList = serde_json::from_str(r#"[{"senderaddress": "0x9d4454B023096f34B160D6B654540c56A1F81688", "recipientaddress": "0x9d4454B023096f34B160D6B654540c56A1F81688"}]"#).unwrap();
-        assert!(list.0.is_some());
-        assert_eq!(list.0.as_ref().unwrap().len(), 1);
-        let elem = &list.0.as_ref().unwrap()[0];
-        assert_eq!(elem.destination_domain, Wildcard);
-        assert_eq!(
-            elem.recipient_address,
-            Enumerated(vec!["0x9d4454B023096f34B160D6B654540c56A1F81688"
-                .parse::<H160>()
-                .unwrap()
-                .into()])
-        );
-        assert_eq!(elem.origin_domain, Wildcard);
-        assert_eq!(
-            elem.sender_address,
-            Enumerated(vec!["0x9d4454B023096f34B160D6B654540c56A1F81688"
-                .parse::<H160>()
-                .unwrap()
-                .into()])
-        );
-
-        assert!(list.matches(
-            MatchInfo {
-                src_domain: 34,
-                src_addr: &"0x9d4454B023096f34B160D6B654540c56A1F81688"
-                    .parse::<H160>()
-                    .unwrap()
-                    .into(),
-                dst_domain: 5456,
-                dst_addr: &"9d4454B023096f34B160D6B654540c56A1F81688"
-                    .parse::<H160>()
-                    .unwrap()
-                    .into()
-            },
-            false
-        ));
-
-        assert!(!list.matches(
-            MatchInfo {
-                src_domain: 34,
-                src_addr: &"0x9d4454B023096f34B160D6B654540c56A1F81688"
-                    .parse::<H160>()
-                    .unwrap()
-                    .into(),
-                dst_domain: 5456,
-                dst_addr: &H256::default()
-            },
-            false
-        ));
-    }
+    use super::{Filter::*, MatchingList};
 
     #[test]
     fn config_with_multiple_domains() {
@@ -431,20 +295,6 @@ mod test {
     fn config_with_empty_list_is_none() {
         let whitelist: MatchingList = serde_json::from_str(r#"[]"#).unwrap();
         assert!(whitelist.0.is_none());
-    }
-
-    #[test]
-    fn matches_empty_list() {
-        let info = MatchInfo {
-            src_domain: 0,
-            src_addr: &H256::default(),
-            dst_domain: 0,
-            dst_addr: &H256::default(),
-        };
-        // whitelist use
-        assert!(MatchingList(None).matches(info, true));
-        // blacklist use
-        assert!(!MatchingList(None).matches(info, false));
     }
 
     #[test]

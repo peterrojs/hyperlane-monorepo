@@ -12,6 +12,7 @@ use ethers::prelude::{LocalWallet, PendingTransaction};
 use ethers::providers::{Http, Provider};
 use std::str::FromStr;
 use std::sync::Arc;
+use serde_json::to_string;
 
 pub async fn send_message(wallet: LocalWallet, args: SendArgs) {
     let provider =
@@ -48,10 +49,10 @@ pub async fn send_message(wallet: LocalWallet, args: SendArgs) {
 pub async fn perform_search(matching_list: MatchingList) {
     let query = r#"
     query Message(
-      $senderAddress: bytea,
-      $recipientAddress: bytea,
-      $originDomain: [Int!],
-      $destinationDomain: [Int!]
+      $senderaddress: bytea,
+      $recipientaddress: bytea,
+      $origindomain: [Int!],
+      $destinationdomain: [Int!]
     ) {
       message(
         where: {
@@ -77,12 +78,15 @@ pub async fn perform_search(matching_list: MatchingList) {
       }
     }
     "#;
-    let variables = serde_json::json!({
-      "senderAddress": "\\xc27980812e2e66491fd457d488509b7e04144b98",
-      "recipientAddress": "\\x4501bbe6e731a4bc5c60c03a77435b2f6d5e9fe7",
-      "originDomain": [56],
-      "destinationDomain": [22222]
-    });
+
+    let variables = matching_list.0
+        .map(|list_elements| serde_json::to_value(&list_elements).unwrap())
+        .unwrap_or_else(|| {
+            println!("MatchingList is empty");
+            serde_json::Value::Null
+        });
+
+    println!("Variables: {}", variables.clone());
 
     match send_graphql_request::<Message<Vec<SearchQueryResponse>>>(
         "https://api.hyperlane.xyz/v1/graphql",
