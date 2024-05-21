@@ -92,9 +92,10 @@ pub async fn perform_search(matching_list: MatchingList) {
     .await
     {
         Ok(data) => {
-            let pretty_data = serde_json::to_string_pretty(&data.message).expect("Failed to serialize data");
+            let pretty_data =
+                serde_json::to_string_pretty(&data.message).expect("Failed to serialize data");
             println!("{}", pretty_data);
-        },
+        }
         Err(e) => println!("Error sending request: {}", e),
     }
 }
