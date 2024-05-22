@@ -25,7 +25,7 @@ impl SendArgs {
                 .get_one::<String>("domain")
                 .expect("Error getting destination domain/chain")
                 .parse::<u32>()
-                .unwrap(),
+                .expect("Domain is not a number"),
             address: matches
                 .get_one::<String>("address")
                 .expect("Error getting destination address")

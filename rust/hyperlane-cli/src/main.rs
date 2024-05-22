@@ -7,7 +7,7 @@ use crate::model::send_args::SendArgs;
 use clap::{arg, command, Command};
 use colored::Colorize;
 use ethers::core::rand::rngs::OsRng;
-use ethers::prelude::LocalWallet;
+use ethers::prelude::{LocalWallet, Signer};
 use serde_json::from_str;
 use std::str::FromStr;
 
@@ -18,6 +18,7 @@ async fn main() {
     let matches = command!()
         .about("A CLI tool for interacting with Hyperlane")
         .arg(arg!(-w --wallet <WALLET> "Sets the private key to use"))
+        .arg(arg!(-c --chain <CHAIN> "Chain ID for EIP-155").required(true))
         .subcommand(
             Command::new("send")
                 .about("Dispatches a message")
@@ -40,16 +41,20 @@ async fn main() {
     match matches.subcommand() {
         Some(("send", send_matches)) => {
             let wallet_arg = matches.get_one::<String>("wallet");
+            let chain_id = matches.get_one::<String>("chain").unwrap().parse::<u64>().expect("Failed to parse chain ID to number");
             let wallet = match wallet_arg {
                 Some(wallet_key) => LocalWallet::from_str(
                     wallet_key
                         .strip_prefix("0x")
                         .expect("Wrongfully formatted private key"),
                 )
-                .expect("Failed to parse private key"),
+                .expect("Failed to parse private key")
+                .with_chain_id(chain_id),
+
                 None => {
                     println!("{}", "No wallet provided, generating a new one".bold());
                     LocalWallet::new(&mut OsRng)
+                        .with_chain_id(chain_id)
                 }
             };
 
