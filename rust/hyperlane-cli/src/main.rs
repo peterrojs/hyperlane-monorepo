@@ -41,7 +41,11 @@ async fn main() {
     match matches.subcommand() {
         Some(("send", send_matches)) => {
             let wallet_arg = matches.get_one::<String>("wallet");
-            let chain_id = matches.get_one::<String>("chain").unwrap().parse::<u64>().expect("Failed to parse chain ID to number");
+            let chain_id = matches
+                .get_one::<String>("chain")
+                .unwrap()
+                .parse::<u64>()
+                .expect("Failed to parse chain ID to number");
             let wallet = match wallet_arg {
                 Some(wallet_key) => LocalWallet::from_str(
                     wallet_key
@@ -53,8 +57,7 @@ async fn main() {
 
                 None => {
                     println!("{}", "No wallet provided, generating a new one".bold());
-                    LocalWallet::new(&mut OsRng)
-                        .with_chain_id(chain_id)
+                    LocalWallet::new(&mut OsRng).with_chain_id(chain_id)
                 }
             };
 
