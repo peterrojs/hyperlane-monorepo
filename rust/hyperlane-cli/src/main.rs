@@ -13,6 +13,8 @@ use std::str::FromStr;
 
 #[tokio::main]
 async fn main() {
+    color_eyre::install().expect("Failed to install color_eyre");
+
     let matches = command!()
         .about("A CLI tool for interacting with Hyperlane")
         .arg(arg!(-w --wallet <WALLET> "Sets the private key to use"))

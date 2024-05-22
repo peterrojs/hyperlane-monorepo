@@ -2,12 +2,12 @@ use crate::interfaces::i_mailbox::IMailbox;
 use crate::model::graph_ql::{GraphQLQuery, GraphQLResponse, Message, SearchQueryResponse};
 use crate::model::matching_list::MatchingList;
 use crate::model::send_args::SendArgs;
-use anyhow::Result;
+use color_eyre::owo_colors::OwoColorize;
 use colored::Colorize;
 use ethers::abi::Address;
 use ethers::core::types::Bytes;
 use ethers::middleware::SignerMiddleware;
-use ethers::prelude::{LocalWallet};
+use ethers::prelude::LocalWallet;
 use ethers::providers::{Http, Provider};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -47,19 +47,19 @@ pub async fn send_message(wallet: LocalWallet, args: SendArgs) {
 
 /// Performs a search for messages based on the provided matching list
 pub async fn perform_search(matching_list: MatchingList) {
-    let query = r#"
+    let query_template = r#"
     query Message(
-      $senderaddress: bytea,
-      $recipientaddress: bytea,
-      $origindomain: [Int!],
       $destinationdomain: [Int!]
+      $origindomain: [Int!],
+      $recipientaddress: [bytea!],
+      $senderaddress: [bytea!],
     ) {
       message(
         where: {
-          sender: {_eq: $senderAddress},
-          recipient: {_eq: $recipientAddress},
-          origin: {_in: $originDomain}
-          destination: {_in: $destinationDomain}
+          sender: {_in: $senderaddress},
+          recipient: {_in: $recipientaddress},
+          origin: {_in: $origindomain}
+          destination: {_in: $destinationdomain}
         }
         order_by: {time_created: desc}
         limit: 10
@@ -79,26 +79,38 @@ pub async fn perform_search(matching_list: MatchingList) {
     }
     "#;
 
-    let variables = matching_list.0
-        .map(|list_elements| serde_json::to_value(&list_elements).unwrap())
-        .unwrap_or_else(|| {
-            println!("MatchingList is empty");
-            serde_json::Value::Null
-        });
+    let mut queries = Vec::new();
 
-    println!("Variables: {}", variables.clone());
+    if let Some(mut list_element) = matching_list.0 {
+        for element in list_element.iter_mut() {
+            let variables = serde_json::to_value(&element).unwrap();
+            queries.push(GraphQLQuery {
+                query: query_template.to_string(),
+                variables,
+            });
+        }
+    }
 
-    match send_graphql_request::<Message<Vec<SearchQueryResponse>>>(
+    println!("{}", "Querying...".bold());
+
+    match send_graphql_request::<Vec<GraphQLResponse<Message<Vec<SearchQueryResponse>>>>>(
         "https://api.hyperlane.xyz/v1/graphql",
-        query,
-        variables,
+        &queries,
     )
     .await
     {
         Ok(data) => {
-            let pretty_data =
-                serde_json::to_string_pretty(&data.message).expect("Failed to serialize data");
-            println!("{}", pretty_data);
+            for (i, response) in data.iter().enumerate() {
+                if response.data.message.is_empty() {
+                    println!("No results found for query");
+                    return;
+                }
+                println!("{} {}", "\nResult for query:".bold(), (i + 1).bold());
+
+                for message in response.data.message.iter() {
+                    println!("{}", message);
+                }
+            }
         }
         Err(e) => println!("Error sending request: {}", e),
     }
@@ -106,22 +118,17 @@ pub async fn perform_search(matching_list: MatchingList) {
 
 async fn send_graphql_request<T: for<'de> serde::Deserialize<'de>>(
     endpoint: &str,
-    query: &str,
-    variables: serde_json::Value,
+    queries: &[GraphQLQuery],
 ) -> Result<T, reqwest::Error> {
     let client = reqwest::Client::new();
-    let graphql_query = GraphQLQuery {
-        query: query.to_string(),
-        variables,
-    };
 
     let res = client
         .post(endpoint)
-        .json(&graphql_query)
+        .json(queries)
         .send()
         .await?
-        .json::<GraphQLResponse<T>>()
+        .json::<T>()
         .await?;
 
-    Ok(res.data)
+    Ok(res)
 }

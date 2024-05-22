@@ -21,7 +21,9 @@ clap = { workspace = true, features = ["cargo"] }
 ethers.workspace = true
 tokio.workspace = true
 reqwest.workspace = true
-colored = "2.1.0"
+hex.workspace = true
+colored.workspace = true
+color-eyre.workspace = true
 
 [build-dependencies]
 abigen = { path = "../utils/abigen", features = ["ethers"] }

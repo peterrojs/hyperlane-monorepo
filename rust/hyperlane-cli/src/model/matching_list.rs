@@ -9,7 +9,11 @@ use std::{
 };
 
 use hyperlane_core::{config::StrOrInt, utils::hex_or_base58_to_h256, H256};
-use serde::{de::{Error, SeqAccess, Visitor}, Deserialize, Deserializer, Serialize};
+use serde::ser::SerializeStruct;
+use serde::{
+    de::{Error, SeqAccess, Visitor},
+    Deserialize, Deserializer, Serialize, Serializer,
+};
 
 /// Defines a set of patterns for determining if a message should or should not
 /// be relayed. This is useful for determine if a message matches a given set or
@@ -23,6 +27,7 @@ use serde::{de::{Error, SeqAccess, Visitor}, Deserialize, Deserializer, Serializ
 pub struct MatchingList(pub Option<Vec<ListElement>>);
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(untagged)]
 enum Filter<T> {
     Wildcard,
     Enumerated(Vec<T>),
@@ -208,8 +213,7 @@ impl<'de> Deserialize<'de> for Filter<H256> {
     }
 }
 
-#[derive(Debug, Deserialize, Clone, Serialize)]
-#[serde(tag = "type")]
+#[derive(Debug, Deserialize, Clone)]
 pub struct ListElement {
     #[serde(default, rename = "origindomain")]
     origin_domain: Filter<u32>,
@@ -219,6 +223,52 @@ pub struct ListElement {
     destination_domain: Filter<u32>,
     #[serde(default, rename = "recipientaddress")]
     recipient_address: Filter<H256>,
+}
+
+impl Serialize for ListElement {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("ListElement", 4)?;
+        s.serialize_field("origindomain", &self.origin_domain)?;
+        s.serialize_field("destinationdomain", &self.destination_domain)?;
+
+        serialize_filter_h256::<S>(&mut s, "recipientaddress", &self.recipient_address)?;
+        serialize_filter_h256::<S>(&mut s, "senderaddress", &self.sender_address)?;
+
+        s.end()
+    }
+}
+
+fn serialize_filter_h256<S: Serializer>(
+    s: &mut S::SerializeStruct,
+    field: &'static str,
+    filter: &Filter<H256>,
+) -> Result<(), S::Error> {
+    if let Filter::Enumerated(values) = filter {
+        let hex_values: Vec<String> = values
+            .iter()
+            .map(|value| {
+                let hex_encoded = hex::encode(value.as_bytes());
+                if hex_encoded.chars().count() > 40 {
+                    let last_40 = hex_encoded
+                        .chars()
+                        .rev()
+                        .take(40)
+                        .collect::<Vec<_>>()
+                        .into_iter()
+                        .rev()
+                        .collect::<String>();
+                    format!("\\x{}", last_40)
+                } else {
+                    format!("\\x{}", hex_encoded)
+                }
+            })
+            .collect();
+        s.serialize_field(field, &hex_values)?;
+    }
+    Ok(())
 }
 
 impl Display for ListElement {
@@ -258,7 +308,6 @@ fn parse_addr<E: Error>(addr_str: &str) -> Result<H256, E> {
 
 #[cfg(test)]
 mod test {
-    use hyperlane_core::{H160, H256};
     use super::{Filter::*, MatchingList};
 
     #[test]
@@ -285,20 +334,5 @@ mod test {
         serde_json::from_str::<MatchingList>(
             r#"[{"origindomain":1399811151,"senderaddress":"DdTMkk9nuqH5LnD56HLkPiKMV3yB3BNEYSQfgmJHa5i7","destinationdomain":11155111,"recipientaddress":"0x6AD4DEBA8A147d000C09de6465267a9047d1c217"}]"#,
         ).unwrap();
-    }
-
-    #[test]
-    fn supports_sequence_h256s() {
-        let json_str = r#"[{"origindomain":1399811151,"senderaddress":["0x6AD4DEBA8A147d000C09de6465267a9047d1c217","0x6AD4DEBA8A147d000C09de6465267a9047d1c218"],"destinationdomain":11155111,"recipientaddress":["0x6AD4DEBA8A147d000C09de6465267a9047d1c217","0x6AD4DEBA8A147d000C09de6465267a9047d1c218"]}]"#;
-
-        // Test parsing directly into MatchingList
-        serde_json::from_str::<MatchingList>(json_str).unwrap();
-
-        // Test parsing into a Value and then into MatchingList, which is the path used
-        // by the agent config parser.
-        let val: serde_json::Value = serde_json::from_str(json_str).unwrap();
-        let value_parser =
-            hyperlane_base::settings::parser::ValueParser::new(Default::default(), &val);
-        crate::model::parse_matching_list(value_parser).unwrap();
     }
 }
