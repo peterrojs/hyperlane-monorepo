@@ -17,11 +17,11 @@ async fn main() {
 
     let matches = command!()
         .about("A CLI tool for interacting with Hyperlane")
-        .arg(arg!(-w --wallet <WALLET> "Sets the private key to use"))
-        .arg(arg!(-c --chain <CHAIN> "Chain ID for EIP-155").required(true))
         .subcommand(
             Command::new("send")
                 .about("Dispatches a message")
+                .arg(arg!(-w --wallet <WALLET> "Sets the private key to use"))
+                .arg(arg!(-c --chain <CHAIN> "Chain ID for EIP-155").required(true))
                 .arg(arg!(-m --mailbox <MAILBOX> "Sets the mailbox address").required(true))
                 .arg(arg!(-u --url <URL> "RPC URL to send the message to").required(true))
                 .arg(arg!(-d --domain <DOMAIN> "Sets the destination chain domain").required(true))
@@ -40,8 +40,8 @@ async fn main() {
 
     match matches.subcommand() {
         Some(("send", send_matches)) => {
-            let wallet_arg = matches.get_one::<String>("wallet");
-            let chain_id = matches
+            let wallet_arg = send_matches.get_one::<String>("wallet");
+            let chain_id = send_matches
                 .get_one::<String>("chain")
                 .unwrap()
                 .parse::<u64>()
